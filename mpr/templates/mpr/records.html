@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPR Records</title>
+    <!-- Dependencies -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body { overflow: hidden; }
+        .select2-container .select2-selection--multiple { min-height: calc(1.5em + .75rem + 2px); }
+        .btn-link { font-weight: 600; color: #333; }
+        .btn-link:hover, .btn-link:focus { text-decoration: none; color: #000; }
+        .card-header.summary-header { background-color: #f1f1f1; padding: 0.5rem 1.25rem; }
+        .tab-content { border: 1px solid #dee2e6; border-top: 0; padding: 1.5rem; }
+        
+        /* Record Table Layout */
+        #records .table-container { max-height: 65vh; overflow: auto; margin-bottom: 1rem; }
+        #records .pagination-container { padding-top: 1rem; border-top: 1px solid #dee2e6; }
+        .table th, .table td { white-space: nowrap; vertical-align: middle; }
+
+        /* --- Sticky Header & Columns --- */
+        #records .table-container .thead-dark th { position: -webkit-sticky; position: sticky; top: 0; z-index: 2; }
+        
+        #records .table-container th:nth-child(1), #records .table-container td:nth-child(1),
+        #records .table-container th:nth-child(2), #records .table-container td:nth-child(2) {
+            position: -webkit-sticky;
+            position: sticky;
+            z-index: 1;
+        }
+
+        #records .table-container th:nth-child(1), #records .table-container td:nth-child(1) {
+            left: 0;
+            min-width: 75px; max-width: 75px;
+        }
+
+        #records .table-container th:nth-child(2), #records .table-container td:nth-child(2) {
+            left: 75px; /* Width of first column */
+        }
+
+        #records .table-container .thead-dark th:nth-child(1), #records .table-container .thead-dark th:nth-child(2) { z-index: 3; }
+
+        /* Background for striped tables to prevent text overlap */
+        .table-striped tbody tr:nth-of-type(odd) td:nth-child(1), .table-striped tbody tr:nth-of-type(odd) td:nth-child(2) { background-color: #f2f2f2; }
+        .table-striped tbody tr:nth-of-type(even) td:nth-child(1), .table-striped tbody tr:nth-of-type(even) td:נת-child(2) { background-color: #fff; }
+        /* --- End Sticky --- */
+
+        /* Summary Tab Layout */
+        #summary .summary-content-container { max-height: 80vh; overflow-y: auto; padding-right: 15px; }
+        .summary-table th, .summary-table td { text-align: center; padding: 0.5rem; }
+        .drilldown-cell a { display: block; color: #007bff; font-weight: bold; }
+        .drilldown-cell a:hover { text-decoration: none; background-color: #e9ecef; }
+        .drilldown-details-row > td { padding: 0 !important; border: 0 !important; }
+        .drilldown-details-content { background-color: #f8f9fa; padding: 1rem; }
+        .drilldown-details-content table { margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-3">
+        <h1 class="mb-3">Monthly Progress Report Records</h1>
+
+        {% set is_filtered = request.args|length > 0 and (request.args.get('page') or request.args|length > 1) %}
+
+        <!-- Include Filter Card -->
+        {% include 'mpr/_filter_card.html' %}
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation"><a class="nav-link active" id="records-tab" data-toggle="tab" href="#records" role="tab" aria-controls="records" aria-selected="true">Records ({{ pagination.total }})</a></li>
+            <li class="nav-item" role="presentation"><a class="nav-link" id="summary-tab" data-toggle="tab" href="#summary" role="tab" aria-controls="summary" aria-selected="false">Analytical Summary</a></li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="myTabContent">
+            <!-- Records Tab Pane -->
+            <div class="tab-pane fade show active" id="records" role="tabpanel" aria-labelledby="records-tab">
+                {% include 'mpr/_records_table.html' %}
+            </div>
+
+            <!-- Summary Tab Pane -->
+            <div class="tab-pane fade" id="summary" role="tabpanel" aria-labelledby="summary-tab">
+                {% include 'mpr/_summary_dashboard.html' %}
+            </div>
+        </div>
+    </div>
+
+    <!-- JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.select2').select2({ placeholder: "Select options", allowClear: true });
+            $('#filterCollapse').on('show.bs.collapse', function () { $('#activeFiltersDisplay').hide(); });
+            $('#filterCollapse').on('hide.bs.collapse', function () { if ($('#activeFiltersDisplay').length) { $('#activeFiltersDisplay').show(); } });
+            
+            // Prevent nested card collapse events from bubbling up in the accordion
+            $('#summaryAccordion .card .card').on('show.bs.collapse hide.bs.collapse', function(e) {
+                e.stopPropagation();
+            });
+        });
+    </script>
+</body>
+</html>

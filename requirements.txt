@@ -1,6 +1,5 @@
-# Dev environment
-pip
-autopep8
-
-# App
-flask
+Flask
+Flask-SQLAlchemy
+pandas
+openpyxl
+Flask-Caching

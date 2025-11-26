@@ -1,0 +1,16 @@
+
+{% extends "base.html" %}
+
+{% block title %}MPR Home{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="jumbotron">
+        <h1 class="display-4">MPR Dashboard</h1>
+        <p class="lead">Welcome to the Monthly Progress Report section.</p>
+        <hr class="my-4">
+        <p>You can view all the records from the database.</p>
+        <a class="btn btn-primary btn-lg" href="{{ url_for('mpr.records') }}" role="button">View Records</a>
+    </div>
+</div>
+{% endblock %}
