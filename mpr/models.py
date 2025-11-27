@@ -1,13 +1,54 @@
+
 from main import db
+from sqlalchemy.orm import relationship
+
+# Association table for the many-to-many relationship between RusaPhase and Component
+rusa_phase_components = db.Table('rusa_phase_components',
+    db.Column('rusa_phase_id', db.Integer, db.ForeignKey('rusa_phases.id'), primary_key=True),
+    db.Column('component_id', db.Integer, db.ForeignKey('components.id'), primary_key=True)
+)
+
+class State(db.Model):
+    __tablename__ = 'states'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    reports = relationship("MprReport", back_populates="state_rel", foreign_keys="MprReport.state_id")
+
+class RusaPhase(db.Model):
+    __tablename__ = 'rusa_phases'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    reports = relationship("MprReport", back_populates="rusa_phase_rel", foreign_keys="MprReport.rusa_phase_id")
+    # Many-to-many relationship with Component
+    components = relationship('Component', secondary=rusa_phase_components, back_populates='rusa_phases')
+
+class Component(db.Model):
+    __tablename__ = 'components'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    reports = relationship("MprReport", back_populates="component_rel", foreign_keys="MprReport.component_id")
+    rusa_phases = relationship('RusaPhase', secondary=rusa_phase_components, back_populates='components')
 
 class MprReport(db.Model):
     __tablename__ = 'mpr_report'
     id = db.Column(db.Integer, primary_key=True)
+    
+    # --- String columns for migration ---
     state = db.Column(db.String(255), nullable=True)
-    months = db.Column(db.String(255), nullable=True)
-    year = db.Column(db.Float, nullable=True)
-    component_name = db.Column(db.String(255), nullable=True)
     rusa_phase = db.Column(db.String(255), nullable=True)
+
+    # --- Foreign key columns ---
+    state_id = db.Column(db.Integer, db.ForeignKey('states.id'), nullable=True)
+    rusa_phase_id = db.Column(db.Integer, db.ForeignKey('rusa_phases.id'), nullable=True)
+    component_id = db.Column(db.Integer, db.ForeignKey('components.id'), nullable=True)
+
+    # --- Relationships ---
+    state_rel = relationship('State', back_populates='reports', foreign_keys=[state_id])
+    rusa_phase_rel = relationship('RusaPhase', back_populates='reports', foreign_keys=[rusa_phase_id])
+    component_rel = relationship('Component', back_populates='reports', foreign_keys=[component_id])
+
+    months = db.Column(db.String(255), nullable=True)
+    year = db.Column(db.Integer, nullable=True)
     institution_name = db.Column(db.String(255), nullable=True)
     aishe_code = db.Column(db.String(255), nullable=True)
     district = db.Column(db.String(255), nullable=True)
@@ -39,6 +80,3 @@ class MprReport(db.Model):
     number_of_research_works_being_undertaken = db.Column(db.Float, nullable=True)
     physical_inspection_reports_pir_ = db.Column(db.String(255), nullable=True)
     pir_uploaded_yes_no_not_selected_ = db.Column(db.String(255), nullable=True)
-
-    def __repr__(self):
-        return f'<MprReport {self.id}>'

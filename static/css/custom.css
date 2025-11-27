@@ -1,0 +1,53 @@
+/* Sticky table columns */
+.sticky-col {
+    position: -webkit-sticky;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Filter Card Enhancements */
+#filterCardHeader .btn-link {
+    color: #343a40;
+    text-decoration: none;
+    width: 100%;
+    text-align: left;
+}
+
+#filterCardHeader .btn-link:hover {
+    color: #0056b3;
+}
+
+/* Ensure Select2 dropdowns take up full width of their container */
+.select2-container {
+    width: 100% !important;
+}
+
+/* Styling for the active filter badges */
+#activeFiltersDisplay .filter-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+#activeFiltersDisplay .filter-badge:hover {
+    opacity: 0.8;
+    text-decoration: none;
+}
+
+#activeFiltersDisplay .filter-badge .fa-times-circle {
+    margin-left: 5px;
+    font-size: 1.1em;
+}
+
+#activeFiltersDisplay .card-footer {
+    background-color: #f8f9fa; /* Light grey background for the footer */
+}

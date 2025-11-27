@@ -1,18 +1,15 @@
 
 from flask import render_template, request
 from sqlalchemy import desc, case, func, and_
+from sqlalchemy.orm import contains_eager
 from . import mpr_bp
 from main import cache
-from .models import MprReport
+from .models import MprReport, Component, RusaPhase, State
 from collections import defaultdict
 
-def get_distinct_values(column, query=None):
-    """Helper function to get distinct, non-empty values for a column, optionally from a pre-filtered query."""
-    if query is None:
-        query = MprReport.query
-    return [
-        r[0] for r in query.with_entities(column).distinct().filter(column.isnot(None), column != '').order_by(column).all()
-    ]
+def get_distinct_values(model, column):
+    """Helper function to get distinct, non-empty values for a column from a specific model."""
+    return [r[0] for r in model.query.with_entities(column).distinct().filter(column.isnot(None), column != '').order_by(column).all()]
 
 @mpr_bp.route('/records')
 @cache.cached(timeout=300, query_string=True)
@@ -32,52 +29,63 @@ def records():
         'months': request.args.getlist('months'),
     }
 
-    base_query = MprReport.query
+    # Base query with outer joins to ensure all records are included and relationships can be eagerly loaded.
+    query = MprReport.query.outerjoin(MprReport.state_rel).outerjoin(MprReport.rusa_phase_rel).outerjoin(MprReport.component_rel)
 
     # Apply filters to the query
     if filters['state']:
-        base_query = base_query.filter(MprReport.state.in_(filters['state']))
+        query = query.filter(State.name.in_(filters['state']))
     if filters['rusa_phase']:
-        base_query = base_query.filter(MprReport.rusa_phase.in_(filters['rusa_phase']))
+        query = query.filter(RusaPhase.name.in_(filters['rusa_phase']))
     if filters['component_name']:
-        base_query = base_query.filter(MprReport.component_name.in_(filters['component_name']))
+        query = query.filter(Component.name.in_(filters['component_name']))
     if filters['institution_name']:
-        base_query = base_query.filter(MprReport.institution_name.in_(filters['institution_name']))
+        query = query.filter(MprReport.institution_name.in_(filters['institution_name']))
     if filters['district']:
-        base_query = base_query.filter(MprReport.district.in_(filters['district']))
+        query = query.filter(MprReport.district.in_(filters['district']))
     if filters['project_status']:
-        base_query = base_query.filter(MprReport.project_status.in_(filters['project_status']))
+        query = query.filter(MprReport.project_status.in_(filters['project_status']))
     if filters['year']:
-        base_query = base_query.filter(func.cast(MprReport.year, func.String).in_(filters['year']))
+        query = query.filter(MprReport.year.in_([int(y) for y in filters['year']]))
     if filters['months']:
-        base_query = base_query.filter(MprReport.months.in_(filters['months']))
+        query = query.filter(MprReport.months.in_(filters['months']))
 
     month_order = case(
         {'December': 12, 'November': 11, 'October': 10, 'September': 9, 'August': 8, 'July': 7, 'June': 6, 'May': 5, 'April': 4, 'March': 3, 'February': 2, 'January': 1},
         value=MprReport.months, else_=0
     )
 
-    sorted_query = base_query.order_by(
-        desc(MprReport.year), desc(month_order), MprReport.state, MprReport.rusa_phase
+    # For the main table, explicitly load the relationships to ensure data is available in the template.
+    paginated_query = query.options(
+        contains_eager(MprReport.state_rel),
+        contains_eager(MprReport.rusa_phase_rel),
+        contains_eager(MprReport.component_rel)
+    )
+    
+    sorted_query = paginated_query.order_by(
+        desc(MprReport.year), desc(month_order), State.name, RusaPhase.name
     )
 
     pagination = sorted_query.paginate(page=page, per_page=per_page, error_out=False)
 
     summary_data = {}
-    filtered_records_exist = base_query.first() is not None
+    # Use the filtered query to check for existence efficiently.
+    filtered_records_exist = query.session.query(query.exists()).scalar()
 
     if filtered_records_exist:
-        # Interactive State-wise summary with RUSA phase drilldown
-        interactive_summary_query = base_query.with_entities(
-            MprReport.state,
-            MprReport.rusa_phase,
+        # Analytics queries should only consider records with valid, non-null grouping keys.
+        analytics_query = query.filter(State.name.isnot(None), RusaPhase.name.isnot(None), Component.name.isnot(None))
+
+        interactive_summary_query = analytics_query.with_entities(
+            State.name.label('state'),
+            RusaPhase.name.label('rusa_phase'),
             func.count(MprReport.id).label('total'),
             func.sum(case((MprReport.project_status == 'Ongoing', 1), else_=0)).label('ongoing'),
             func.sum(case((MprReport.project_status == 'Completed', 1), else_=0)).label('completed'),
             func.sum(case((MprReport.whether_pm_digitally_launched_project_yes_no_ == 'Yes', 1), else_=0)).label('pm_launched'),
             func.sum(case((and_(MprReport.whether_pm_digitally_launched_project_yes_no_ == 'Yes', MprReport.project_status == 'Ongoing'), 1), else_=0)).label('pm_ongoing'),
             func.sum(case((and_(MprReport.whether_pm_digitally_launched_project_yes_no_ == 'Yes', MprReport.project_status == 'Completed'), 1), else_=0)).label('pm_completed')
-        ).group_by(MprReport.state, MprReport.rusa_phase).order_by(MprReport.state, MprReport.rusa_phase).all()
+        ).group_by(State.name, RusaPhase.name).order_by(State.name, RusaPhase.name).all()
 
         state_summary_interactive = defaultdict(lambda: { 
             cat: {'count': 0, 'phases': defaultdict(int)} for cat in ['total', 'ongoing', 'completed', 'pm_launched', 'pm_ongoing', 'pm_completed']
@@ -89,36 +97,73 @@ def records():
                     state_summary_interactive[row.state][cat]['count'] += row[i]
                     state_summary_interactive[row.state][cat]['phases'][row.rusa_phase] += row[i]
         
-        # Sort the inner phase dictionaries by phase name for consistent order
         for state, categories in state_summary_interactive.items():
             for cat, data in categories.items():
                 state_summary_interactive[state][cat]['phases'] = dict(sorted(data['phases'].items()))
 
         summary_data['state_summary_interactive'] = dict(sorted(state_summary_interactive.items()))
 
-        summary_data['state_phase_summary'] = base_query.with_entities(MprReport.state, MprReport.rusa_phase, func.count(MprReport.id)).group_by(MprReport.state, MprReport.rusa_phase).order_by(MprReport.state, MprReport.rusa_phase).all()
-        summary_data['state_phase_component_summary'] = base_query.with_entities(MprReport.state, MprReport.rusa_phase, MprReport.component_name, func.count(MprReport.id)).group_by(MprReport.state, MprReport.rusa_phase, MprReport.component_name).order_by(MprReport.state, MprReport.rusa_phase, MprReport.component_name).all()
-        summary_data['month_year_summary'] = base_query.with_entities(MprReport.year, MprReport.months, func.count(MprReport.id)).group_by(MprReport.year, MprReport.months).order_by(desc(MprReport.year), desc(month_order)).all()
+        summary_data['state_phase_summary'] = analytics_query.with_entities(State.name.label('state'), RusaPhase.name.label('rusa_phase'), func.count(MprReport.id)).group_by(State.name, RusaPhase.name).order_by(State.name, RusaPhase.name).all()
+        summary_data['state_phase_component_summary'] = analytics_query.with_entities(State.name.label('state'), RusaPhase.name.label('rusa_phase'), Component.name.label('component_name'), func.count(MprReport.id)).group_by(State.name, RusaPhase.name, Component.name).order_by(State.name, RusaPhase.name, Component.name).all()
+        summary_data['month_year_summary'] = query.with_entities(MprReport.year, MprReport.months, func.count(MprReport.id)).group_by(MprReport.year, MprReport.months).order_by(desc(MprReport.year), desc(month_order)).all()
         
-        latest_month_year = base_query.with_entities(MprReport.year, MprReport.months).order_by(desc(MprReport.year), desc(month_order)).first()
+        latest_month_year = MprReport.query.with_entities(MprReport.year, MprReport.months).order_by(desc(MprReport.year), desc(month_order)).first()
         if latest_month_year:
             latest_year, latest_month = latest_month_year
-            ongoing_projects_query = base_query.filter(MprReport.project_status == 'Ongoing')
-            all_ongoing_institutions = {r.institution_name for r in ongoing_projects_query.distinct(MprReport.institution_name).all()}
-            reported_in_latest_month = {r.institution_name for r in ongoing_projects_query.filter(MprReport.year == latest_year, MprReport.months == latest_month).all()}
-            missing_projects = all_ongoing_institutions - reported_in_latest_month
-            summary_data['missing_ongoing_projects'] = sorted(list(missing_projects))
+            
+            project_key = [
+                State.name, RusaPhase.name, Component.name,
+                MprReport.institution_name, MprReport.district
+            ]
+
+            report_rank_sq = query.with_entities(
+                MprReport.id,
+                func.row_number().over(
+                    partition_by=project_key,
+                    order_by=[desc(MprReport.year), desc(month_order)]
+                ).label('rn')
+            ).subquery()
+
+            latest_reports_q = query.join(
+                report_rank_sq, MprReport.id == report_rank_sq.c.id
+            ).filter(report_rank_sq.c.rn == 1)
+
+            ongoing_latest_reports_q = latest_reports_q.filter(MprReport.project_status == 'Ongoing')
+
+            missing_reports_q = ongoing_latest_reports_q.filter(
+                ~and_(MprReport.year == latest_year, MprReport.months == latest_month)
+            )
+
+            total_missing_count = missing_reports_q.count()
+            pm_missing_count = missing_reports_q.filter(MprReport.whether_pm_digitally_launched_project_yes_no_ == 'Yes').count()
+
+            missing_projects_data = []
+            # Eager load relationships for the missing projects data
+            for report in missing_reports_q.options(contains_eager(MprReport.component_rel)).order_by(*project_key).all():
+                missing_projects_data.append({
+                    'state': report.state_rel.name if report.state_rel else 'N/A',
+                    'rusa_phase': report.rusa_phase_rel.name if report.rusa_phase_rel else 'N/A',
+                    'component_name': report.component_rel.name if report.component_rel else 'N/A',
+                    'institution_name': report.institution_name,
+                    'district': report.district,
+                    'last_reported': f'{report.months} {report.year}',
+                    'is_pm_launched': report.whether_pm_digitally_launched_project_yes_no_ == 'Yes'
+                })
+            
+            summary_data['missing_ongoing_projects'] = missing_projects_data
+            summary_data['missing_total_count'] = total_missing_count
+            summary_data['missing_pm_count'] = pm_missing_count
             summary_data['latest_month_for_missing'] = f"{latest_month} {latest_year}"
 
     filter_options = {
-        'states': get_distinct_values(MprReport.state),
-        'rusa_phases': get_distinct_values(MprReport.rusa_phase),
-        'component_names': get_distinct_values(MprReport.component_name),
-        'institution_names': get_distinct_values(MprReport.institution_name),
-        'districts': get_distinct_values(MprReport.district),
-        'project_statuses': get_distinct_values(MprReport.project_status),
-        'years': get_distinct_values(MprReport.year),
-        'months': get_distinct_values(MprReport.months),
+        'states': get_distinct_values(State, State.name),
+        'rusa_phases': get_distinct_values(RusaPhase, RusaPhase.name),
+        'component_names': get_distinct_values(Component, Component.name),
+        'institution_names': get_distinct_values(MprReport, MprReport.institution_name),
+        'districts': get_distinct_values(MprReport, MprReport.district),
+        'project_statuses': get_distinct_values(MprReport, MprReport.project_status),
+        'years': get_distinct_values(MprReport, MprReport.year),
+        'months': get_distinct_values(MprReport, MprReport.months),
     }
 
     return render_template(
@@ -126,5 +171,6 @@ def records():
         pagination=pagination,
         filters=filters,
         filter_options=filter_options,
-        summary_data=summary_data
+        summary_data=summary_data,
+        is_filtered=any(filters.values())
     )

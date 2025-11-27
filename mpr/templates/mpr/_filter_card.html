@@ -1,47 +1,88 @@
-
 <div class="card mb-3">
     <div class="card-header p-2" id="filterCardHeader">
        <h2 class="mb-0">
-           <button class="btn btn-link btn-block text-left" type="button" data-toggle="collapse" data-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+           <button class="btn btn-link btn-block text-left" type="button" data-toggle="collapse" data-target="#filterCollapse" aria-expanded="{{ 'true' if is_filtered else 'false' }}" aria-controls="filterCollapse">
                <i class="fas fa-filter mr-2"></i>Filter Records
            </button>
        </h2>
    </div>
 
-   {% if is_filtered %}
-   <div id="activeFiltersDisplay" class="card-body border-top p-2">
-        <div class="d-flex align-items-center flex-wrap">
-           <strong class="mr-3">Active Filters:</strong>
-           {% for filter_name, values in filters.items() %}
-               {% if values %}
-                   <div class="filter-group mr-3 mb-1">
-                       <span class="filter-group-label">{{ filter_name.replace('_', ' ') }}:</span>
-                       {% for value in values %}
-                          <span class="badge badge-info filter-badge">{{ value }}</span>
-                       {% endfor %}
-                   </div>
-               {% endif %}
-           {% endfor %}
-           <a href="{{ url_for('mpr.records') }}" class="btn btn-sm btn-outline-secondary ml-auto">Reset</a>
-       </div>
-   </div>
-   {% endif %}
-
-   <div id="filterCollapse" class="collapse" aria-labelledby="filterCardHeader">
+   <div id="filterCollapse" class="collapse {{ 'show' if is_filtered else '' }}" aria-labelledby="filterCardHeader">
         <form method="get" action="{{ url_for('mpr.records') }}" class="card-body">
-           <div class="form-row">
-               <div class="form-group col-md-3"><label for="state">State</label><select id="state" name="state" class="form-control select2" multiple>{% for state in filter_options.states %}<option value="{{ state }}" {% if state in filters.state %}selected{% endif %}>{{ state }}</option>{% endfor %}</select></div>
-               <div class="form-group col-md-3"><label for="rusa_phase">RUSA Phase</label><select id="rusa_phase" name="rusa_phase" class="form-control select2" multiple>{% for phase in filter_options.rusa_phases %}<option value="{{ phase }}" {% if phase in filters.rusa_phase %}selected{% endif %}>{{ phase }}</option>{% endfor %}</select></div>
-               <div class="form-group col-md-3"><label for="component_name">Component</label><select id="component_name" name="component_name" class="form-control select2" multiple>{% for name in filter_options.component_names %}<option value="{{ name }}" {% if name in filters.component_name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
-               <div class="form-group col-md-3"><label for="institution_name">Institution</label><select id="institution_name" name="institution_name" class="form-control select2" multiple>{% for name in filter_options.institution_names %}<option value="{{ name }}" {% if name in filters.institution_name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
-           </div>
-            <div class="form-row">
-               <div class="form-group col-md-3"><label for="district">District</label><select id="district" name="district" class="form-control select2" multiple>{% for district in filter_options.districts %}<option value="{{ district }}" {% if district in filters.district %}selected{% endif %}>{{ district }}</option>{% endfor %}</select></div>
-               <div class="form-group col-md-3"><label for="project_status">Status</label><select id="project_status" name="project_status" class="form-control select2" multiple>{% for status in filter_options.project_statuses %}<option value="{{ status }}" {% if status in filters.project_status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></div>
-               <div class="form-group col-md-3"><label for="year">Year</label><select id="year" name="year" class="form-control select2" multiple>{% for year in filter_options.years %}<option value="{{ year }}" {% if year|string in filters.year %}selected{% endif %}>{{ year }}</option>{% endfor %}</select></div>
-               <div class="form-group col-md-3"><label for="months">Month</label><select id="months" name="months" class="form-control select2" multiple>{% for month in filter_options.months %}<option value="{{ month }}" {% if month in filters.months %}selected{% endif %}>{{ month }}</option>{% endfor %}</select></div>
-           </div>
-           <div class="form-row"><div class="col-md-12 text-right"><button type="submit" class="btn btn-primary">Filter</button><a href="{{ url_for('mpr.records') }}" class="btn btn-secondary">Reset</a></div></div>
-       </form>
+            <div class="row">
+                <div class="col-lg-3 col-md-4 mb-3">
+                    <label for="state" class="mb-1 small">State</label>
+                    <select id="state" name="state" class="form-control select2" multiple>
+                        {% for state in filter_options.states %}<option value="{{ state }}" {% if state in filters.state %}selected{% endif %}>{{ state }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-3 col-md-4 mb-3">
+                    <label for="rusa_phase" class="mb-1 small">RUSA Phase</label>
+                    <select id="rusa_phase" name="rusa_phase" class="form-control select2" multiple>
+                        {% for phase in filter_options.rusa_phases %}<option value="{{ phase }}" {% if phase in filters.rusa_phase %}selected{% endif %}>{{ phase }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-6 col-md-4 mb-3">
+                    <label for="component_name" class="mb-1 small">Component</label>
+                    <select id="component_name" name="component_name" class="form-control select2" multiple>
+                        {% for name in filter_options.component_names %}<option value="{{ name }}" {% if name in filters.component_name %}selected{% endif %}>{{ name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-6 col-md-6 mb-3">
+                    <label for="institution_name" class="mb-1 small">Institution</label>
+                    <select id="institution_name" name="institution_name" class="form-control select2" multiple>
+                        {% for name in filter_options.institution_names %}<option value="{{ name }}" {% if name in filters.institution_name %}selected{% endif %}>{{ name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-3 mb-3">
+                    <label for="district" class="mb-1 small">District</label>
+                    <select id="district" name="district" class="form-control select2" multiple>
+                        {% for district in filter_options.districts %}<option value="{{ district }}" {% if district in filters.district %}selected{% endif %}>{{ district }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-3 mb-3">
+                    <label for="project_status" class="mb-1 small">Status</label>
+                    <select id="project_status" name="project_status" class="form-control select2" multiple>
+                        {% for status in filter_options.project_statuses %}<option value="{{ status }}" {% if status in filters.project_status %}selected{% endif %}>{{ status }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-1 col-md-3 mb-3">
+                    <label for="year" class="mb-1 small">Year</label>
+                    <select id="year" name="year" class="form-control select2" multiple>
+                        {% for year in filter_options.years %}<option value="{{ year }}" {% if year|string in filters.year %}selected{% endif %}>{{ year }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-1 col-md-3 mb-3">
+                    <label for="months" class="mb-1 small">Month</label>
+                    <select id="months" name="months" class="form-control select2" multiple>
+                        {% for month in filter_options.months %}<option value="{{ month }}" {% if month in filters.months %}selected{% endif %}>{{ month }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-12 text-right">
+                    <button type="submit" class="btn btn-primary mr-2">Filter</button>
+                    <a href="{{ url_for('mpr.records') }}" class="btn btn-secondary">Reset</a>
+                </div>
+            </div>
+        </form>
+
+        {% if is_filtered %}
+        <div id="activeFiltersDisplay" class="card-footer p-2">
+            <div class="d-flex align-items-center flex-wrap">
+                <strong class="mr-3 small">Active Filters:</strong>
+                {% for filter_name, values in filters.items() %}
+                    {% if values %}
+                        {% for value in values %}
+                        <a href="?{{ request.query_string|remove_filter(filter_name, value) }}" class="badge badge-pill badge-info mr-1 mb-1 filter-badge">
+                            {{ filter_name.replace('_', ' ')|title }}: {{ value }}
+                            <i class="fas fa-times-circle ml-1"></i>
+                        </a>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
    </div>
 </div>

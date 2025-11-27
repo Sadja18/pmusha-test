@@ -5,7 +5,7 @@
        <div class="card">
            <div class="card-header summary-header" id="headingStateSummary"><h2 class="mb-0"><button class="btn btn-link btn-block text-left" type="button" data-toggle="collapse" data-target="#collapseStateSummary" aria-expanded="true">State-wise Summary (Drill-down)</button></h2></div>
            <div id="collapseStateSummary" class="collapse show" data-parent="#summaryAccordion">
-               <div class="card-body table-responsive"><table class="table table-bordered table-hover table-sm summary-table mb-0"><thead class="thead-light"><tr><th>State</th><th>Total</th><th>Ongoing</th><th>Completed</th><th>PM Launched</th><th>PM Ongoing</th><th>PM Completed</th></tr></thead><tbody>
+               <div class="card-body table-responsive"><table class="table table-bordered table-hover table-sm summary-table mb-0"><thead class="thead-light"><tr><th class="text-left">State</th><th>Total</th><th>Ongoing</th><th>Completed</th><th>PM Launched</th><th>PM Ongoing</th><th>PM Completed</th></tr></thead><tbody>
                {% for state, categories in summary_data.state_summary_interactive.items() %}
                    <tr class="main-row"><td class="text-left"><b>{{ state }}</b></td>
                        {% for cat in ['total', 'ongoing', 'completed', 'pm_launched', 'pm_ongoing', 'pm_completed'] %}
@@ -14,12 +14,12 @@
                    </tr>
                    {% for cat in ['total', 'ongoing', 'completed', 'pm_launched', 'pm_ongoing', 'pm_completed'] %}
                        {% if categories[cat]['count'] > 0 %}
-                       <tr id="{{ state|replace(' ', '-') }}-{{ cat }}-details" class="collapse drilldown-details-row"><td colspan="7"><div class="drilldown-details-content"><h6>{{ state }} - {{ cat|replace('_', ' ')|title }} by RUSA Phase</h6><table class="table table-sm table-striped table-bordered"><thead class="thead-dark"><tr><th>Phase</th><th>Count</th></tr></thead><tbody>
-                       {% for phase, count in categories[cat]['phases'].items() %}<tr><td>{{ phase }}</td><td>{{ count }}</td></tr>{% endfor %}
+                       <tr id="{{ state|replace(' ', '-') }}-{{ cat }}-details" class="collapse drilldown-details-row"><td colspan="7"><div class="drilldown-details-content"><h6>{{ state }} - {{ cat|replace('_', ' ')|title }} by RUSA Phase</h6><table class="table table-sm table-striped table-bordered"><thead class="thead-dark"><tr><th class="text-left">Phase</th><th>Count</th></tr></thead><tbody>
+                       {% for phase, count in categories[cat]['phases'].items() %}<tr><td class="text-left">{{ phase }}</td><td>{{ count }}</td></tr>{% endfor %}
                        </tbody></table></div></td></tr>
                        {% endif %}
                    {% endfor %}
-               {% else %}<tr><td colspan="7">No data available.</td></tr>
+               {% else %}<tr><td colspan="7" class="text-center">No data available.</td></tr>
                {% endfor %}
                </tbody></table></div>
            </div>
@@ -28,11 +28,54 @@
        <!-- Other Summary Cards -->
        {% if summary_data.missing_ongoing_projects is defined %}
        <div class="card">
-           <div class="card-header summary-header" id="headingMissingProjects"><h2 class="mb-0"><button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseMissingProjects">Ongoing Projects w/ Missing Report for {{ summary_data.latest_month_for_missing }}</button></h2></div>
-           <div id="collapseMissingProjects" class="collapse" data-parent="#summaryAccordion">
-               <div class="card-body">{% if summary_data.missing_ongoing_projects %}<ul class="list-group">{% for p in summary_data.missing_ongoing_projects %}<li class="list-group-item py-1">{{ p }}</li>{% endfor %}</ul>{% else %}<p class="mb-0">All ongoing projects have submitted reports.</p>{% endif %}</div>
-           </div>
-       </div>
+            <div class="card-header summary-header" id="headingMissingProjects">
+                <h2 class="mb-0">
+                    <button class="btn btn-link btn-block text-left collapsed" type="button" data-toggle="collapse" data-target="#collapseMissingProjects">
+                        Ongoing Projects w/ Missing Report for {{ summary_data.latest_month_for_missing }}
+                    </button>
+                </h2>
+            </div>
+            <div id="collapseMissingProjects" class="collapse" data-parent="#summaryAccordion">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="font-weight-bold">
+                            Total Missing: {{ summary_data.missing_total_count }} | PM-Launched Missing: {{ summary_data.missing_pm_count }}
+                        </div>
+                        <div id="missing-projects-pagination" class="pagination-controls"></div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        {% if summary_data.missing_ongoing_projects %}
+                            <table class="table table-bordered table-sm summary-table mb-0">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th class="text-left">State</th>
+                                        <th class="text-left">RUSA Phase</th>
+                                        <th class="text-left">Component</th>
+                                        <th class="text-left">Institution</th>
+                                        <th class="text-left">District</th>
+                                        <th class="text-left">Last Reported</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="missing-projects-tbody">
+                                    {% for p in summary_data.missing_ongoing_projects %}
+                                        <tr class="missing-project-row">
+                                            <td class="text-left">{{ p.state }}</td>
+                                            <td class="text-left">{{ p.rusa_phase }}</td>
+                                            <td class="text-left">{{ p.component_name }}</td>
+                                            <td class="text-left">{{ p.institution_name }}{% if p.is_pm_launched %} <span class="badge badge-info">PM</span>{% endif %}</td>
+                                            <td class="text-left">{{ p.district }}</td>
+                                            <td class="text-left">{{ p.last_reported }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p class="mb-0 text-center">All ongoing projects have submitted reports for the selected period.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
        {% endif %}
 
        <div class="card">
@@ -40,8 +83,8 @@
            <div id="collapseGroupedSummary" class="collapse" data-parent="#summaryAccordion">
                <div class="card-body">
                     <div class="row">
-                       <div class="col-lg-5"><div class="card summary-card"><div class="card-header">By Month/Year</div><div class="table-responsive"><table class="table table-bordered table-sm summary-table mb-0"><thead class="thead-light"><tr><th>Month/Year</th><th>Count</th></tr></thead><tbody>{% for row in summary_data.month_year_summary %}<tr><td>{{ row.months }} {{ row.year }}</td><td>{{ row[2] }}</td></tr>{% else %}<tr><td colspan="2">No data.</td></tr>{% endfor %}</tbody></table></div></div></div>
-                       <div class="col-lg-7"><div class="card summary-card"><div class="card-header">By State/Phase/Component</div><div class="table-responsive"><table class="table table-bordered table-sm summary-table mb-0"><thead class="thead-light"><tr><th>Grouping</th><th>Count</th></tr></thead><tbody>{% for row in summary_data.state_phase_summary %}<tr><td>{{ row.state }} / {{ row.rusa_phase }}</td><td>{{ row[2] }}</td></tr>{% else %}<tr><td colspan="2">No data.</td></tr>{% endfor %}{% for row in summary_data.state_phase_component_summary %}<tr><td>{{ row.state }} / {{ row.rusa_phase }} / {{ row.component_name }}</td><td>{{ row[3] }}</td></tr>{% else %}<tr><td colspan-="2">No data.</td></tr>{% endfor %}</tbody></table></div></div></div>
+                       <div class="col-lg-5"><div class="card summary-card"><div class="card-header">By Month/Year</div><div class="table-responsive"><table class="table table-bordered table-sm summary-table mb-0"><thead class="thead-light"><tr><th class="text-left">Month/Year</th><th>Count</th></tr></thead><tbody>{% for row in summary_data.month_year_summary %}<tr><td class="text-left">{{ row.months }} {{ row.year }}</td><td>{{ row[2] }}</td></tr>{% else %}<tr><td colspan="2" class="text-center">No data.</td></tr>{% endfor %}</tbody></table></div></div></div>
+                       <div class="col-lg-7"><div class="card summary-card"><div class="card-header">By State/Phase/Component</div><div class="table-responsive"><table class="table table-bordered table-sm summary-table mb-0"><thead class="thead-light"><tr><th class="text-left">Grouping</th><th>Count</th></tr></thead><tbody>{% for row in summary_data.state_phase_summary %}<tr><td class="text-left">{{ row.state }} / {{ row.rusa_phase }}</td><td>{{ row[2] }}</td></tr>{% else %}<tr><td colspan="2" class="text-center">No data.</td></tr>{% endfor %}{% for row in summary_data.state_phase_component_summary %}<tr><td class="text-left">{{ row.state }} / {{ row.rusa_phase }} / {{ row.component_name }}</td><td>{{ row[3] }}</td></tr>{% else %}<tr><td colspan-="2" class="text-center">No data.</td></tr>{% endfor %}</tbody></table></div></div></div>
                    </div>
                </div>
            </div>

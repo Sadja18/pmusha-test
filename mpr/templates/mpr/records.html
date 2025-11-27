@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
         body { overflow: hidden; }
+        .page-container { height: 100vh; overflow: auto; }
         .select2-container .select2-selection--multiple { min-height: calc(1.5em + .75rem + 2px); }
         .btn-link { font-weight: 600; color: #333; }
         .btn-link:hover, .btn-link:focus { text-decoration: none; color: #000; }
@@ -45,12 +46,14 @@
 
         /* Background for striped tables to prevent text overlap */
         .table-striped tbody tr:nth-of-type(odd) td:nth-child(1), .table-striped tbody tr:nth-of-type(odd) td:nth-child(2) { background-color: #f2f2f2; }
-        .table-striped tbody tr:nth-of-type(even) td:nth-child(1), .table-striped tbody tr:nth-of-type(even) td:נת-child(2) { background-color: #fff; }
+        .table-striped tbody tr:nth-of-type(even) td:nth-child(1), .table-striped tbody tr:nth-of-type(even) td:nth-child(2) { background-color: #fff; }
         /* --- End Sticky --- */
 
         /* Summary Tab Layout */
-        #summary .summary-content-container { max-height: 80vh; overflow-y: auto; padding-right: 15px; }
-        .summary-table th, .summary-table td { text-align: center; padding: 0.5rem; }
+        #summary .summary-content-container { max-height: 75vh; overflow-y: auto; padding-right: 15px; }
+        .summary-table { font-size: 0.85rem; }
+        .summary-table th, .summary-table td { text-align: center; padding: 0.4rem; }
+        .summary-table td.text-left, .summary-table th.text-left { text-align: left !important; }
         .drilldown-cell a { display: block; color: #007bff; font-weight: bold; }
         .drilldown-cell a:hover { text-decoration: none; background-color: #e9ecef; }
         .drilldown-details-row > td { padding: 0 !important; border: 0 !important; }
@@ -59,7 +62,7 @@
     </style>
 </head>
 <body>
-    <div class="container-fluid mt-3">
+    <div class="container-fluid mt-3 page-container">
         <h1 class="mb-3">Monthly Progress Report Records</h1>
 
         {% set is_filtered = request.args|length > 0 and (request.args.get('page') or request.args|length > 1) %}
@@ -100,6 +103,64 @@
             // Prevent nested card collapse events from bubbling up in the accordion
             $('#summaryAccordion .card .card').on('show.bs.collapse hide.bs.collapse', function(e) {
                 e.stopPropagation();
+            });
+
+            // Defer pagination setup for Missing Projects until the card is shown
+            $('#collapseMissingProjects').on('shown.bs.collapse', function () {
+                // Check if pagination has already been initialized to prevent re-running the setup
+                if ($(this).data('paginated')) {
+                    return;
+                }
+                $(this).data('paginated', true);
+
+                var rows = $('#missing-projects-tbody .missing-project-row');
+                var rowsPerPage = 10;
+                var numPages = Math.ceil(rows.length / rowsPerPage);
+                var currentPage = 1;
+
+                function showPage(page) {
+                    rows.hide();
+                    rows.slice((page - 1) * rowsPerPage, page * rowsPerPage).show();
+                }
+
+                function setupPagination() {
+                    var paginationControls = $('#missing-projects-pagination');
+                    paginationControls.empty();
+                    if (numPages <= 1) return;
+
+                    var prevButton = $('<button class="btn btn-sm btn-outline-secondary prev-btn">&laquo; Prev</button>').on('click', function() {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            showPage(currentPage);
+                            updateControls();
+                        }
+                    });
+                    paginationControls.append(prevButton);
+
+                    var pageInfo = $('<span class="mx-2"></span>');
+                    paginationControls.append(pageInfo);
+
+                    var nextButton = $('<button class="btn btn-sm btn-outline-secondary next-btn">Next &raquo;</button>').on('click', function() {
+                        if (currentPage < numPages) {
+                            currentPage++;
+                            showPage(currentPage);
+                            updateControls();
+                        }
+                    });
+                    paginationControls.append(nextButton);
+                    updateControls(); // Initial state
+                }
+
+                function updateControls() {
+                    $('.prev-btn', '#missing-projects-pagination').prop('disabled', currentPage === 1);
+                    $('.next-btn', '#missing-projects-pagination').prop('disabled', currentPage === numPages);
+                    $('span', '#missing-projects-pagination').text('Page ' + currentPage + ' of ' + numPages);
+                }
+
+                if (rows.length > 0) {
+                    setupPagination();
+                    showPage(1);
+                }
             });
         });
     </script>
